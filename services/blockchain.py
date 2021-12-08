@@ -30,23 +30,25 @@ class user:
 
 # coinbase=user()
 
-class txIn:
-    def __init__(self,sender_addr,details,val,pkScript,sigScript):
-        self.sender_addr=sender_addr
-        self.details=details
-        self.val=val
-        self.pkScript=pkScript
-        self.sigScript=sigScript
+# class txIn:
+#     def __init__(self,sender_addr,details,val,pkScript,sigScript):
+#         self.sender_addr=sender_addr
+#         self.details=details
+#         self.val=val
+#         self.pkScript=pkScript
+#         self.sigScript=sigScript
     
-    def display(self):
-        print("\nAddress :",self.sender_addr,"\nDetails :",self.details,"\nValue :",self.val)
+#     def display(self):
+#         print("\nAddress :",self.sender_addr,"\nDetails :",self.details,"\nValue :",self.val)
 
 class txOut:
-    def __init__(self,receiver_addr,details,val,pkScript):
+    def __init__(self,receiver_addr,details,val,r_pkScript,s_pkScript,sigScript):
         self.receiver_addr=receiver_addr
         self.details=details
         self.val=val
-        self.pkScript=pkScript
+        self.r_pkScript=r_pkScript
+        self.s_pkScript=s_pkScript
+        self.sigScript=sigScript
     
     def display(self):
         print("\nAddress :",self.receiver_addr,"\nDetails :",self.details,"\nValue :",self.val)
@@ -69,7 +71,7 @@ class unconfirmed_tx:
 class valid_transaction: 
 
     def __init__(self,inputs,outputs,tx_hash):
-        self.sender=inputs[0].sender_addr
+        self.sender=inputs[0].receiver_addr #Sender Public Key
         self.receiver=outputs[0].receiver_addr #Reciever Public Key
         self.timestamp=datetime.datetime.now() 
         self.inputs=inputs
@@ -154,26 +156,26 @@ def tx_validation(unc_tx):
     if in_sum<amt:
         print("[INVALID] Insufficient Balance ", in_sum, " Required : ",amt)
         return False # Insufficient Balence, Invalid Transaction
-    outputs=[txOut(receiver_pkh,"Unspent",amt,r_pkScript)]
+    outputs=[txOut(receiver_pkh,"Unspent",amt,r_pkScript,scriptPubKey(sender_pkh),sigScript)]
     if in_sum>amt:
-        outputs.append(txOut(sender_pkh,"Unspent",in_sum-amt,scriptPubKey(sender_pkh))) # change
-    utxo_bin=[]
+        outputs.append(txOut(sender_pkh,"Unspent",in_sum-amt,scriptPubKey(sender_pkh),scriptPubKey(sender_pkh),sigScript)) # change
+    #utxo_bin=[]
     for i in range(len(inputs)):
         ip=inputs[i]
         #print("\n------------------\nSender :",sender_pkh,"\nReceiver :",receiver_pkh)
         
-        val=p2pkhScript(ip.pkScript,sigScript,data)
+        val=p2pkhScript(ip.r_pkScript,sigScript,data)
         if val==False:
-            for tb in utxo_bin:
-                UTXO_DB[tb.sender_addr].append(tb)
+            # for tb in utxo_bin:
+            #     UTXO_DB[tb.sender_addr].append(tb)
             print("[INVALID] P2PKH Script verifiction failed")
             return False 
             
-        inputs[i]=txIn(ip.receiver_addr,"Output",ip.val,ip.pkScript,sigScript)
-        UTXO_DB[ip.receiver_addr].remove(ip) 
-        utxo_bin.append(ip)
-    for tx in outputs:
-        UTXO_DB[tx.receiver_addr].append(tx)
+        inputs[i].details="Output"
+        # UTXO_DB[ip.receiver_addr].remove(ip) 
+        # utxo_bin.append(ip)
+    # for tx in outputs:
+    #     UTXO_DB[tx.receiver_addr].append(tx)
     m=hashlib.sha256(data)
     valid_transaction(inputs,outputs,m.hexdigest())
     print("[VALID] Added to Mempool")
@@ -182,14 +184,11 @@ def tx_validation(unc_tx):
 
 def coinbase_transaction(receiver):
     pks=scriptPubKey(receiver)
-    ti=txIn("COINBASE","output",accepted_block_reward,0,0)
-    to=txOut(receiver,"Unspent",accepted_block_reward,pks)
+    ti=txOut("COINBASE","output",accepted_block_reward,0,0,"")
+    to=txOut(receiver,"Unspent",accepted_block_reward,pks,"","")
     m=hashlib.sha256(bytes("COINBASE"+receiver+str(datetime.datetime.now()),encoding='utf-8'))
     tx=valid_transaction([ti],[to],m.hexdigest())
-    if receiver in UTXO_DB:
-        UTXO_DB[receiver].append(to)
-    else:
-        UTXO_DB[receiver]=[to]
+    
     return tx
     
 
@@ -280,7 +279,18 @@ def mine():
     for i in range(no_tx):
         tx = mempool[0]
         tx_list.append(tx)
+        
+        for ip in tx.inputs:
+            if ip.receiver_addr!="COINBASE":
+                UTXO_DB[ip.receiver_addr].remove(ip) 
+        for op in tx.outputs:
+            if op.receiver_addr in UTXO_DB:
+                UTXO_DB[op.receiver_addr].append(op)
+            else:
+                UTXO_DB[op.receiver_addr]=[op]
+            
         mempool.remove(tx)
+        
     finding=True
     nonce=0
     block_data=miner.pub_key_hash+str(no_tx)

@@ -37,7 +37,7 @@
                 >>Transaction Hash : {{tx.tx_hash}}<br>
                   Inputs : <br>
                   {% for ip in tx.inputs: %}
-                    > Sender : {{ip.sender_addr}}<br>
+                    > Sender : {{ip.receiver_addr}}<br>
                       Amount : {{ip.val}}
                   {% endfor %}
                   <br> Outputs : <br>
