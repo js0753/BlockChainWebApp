@@ -1,0 +1,33 @@
+<html>
+    <head>
+        <title>
+            BlockView : BlockChain Web App
+        </title>
+    </head>
+    <body>
+        <!-- <button type="button" onclick=stopMining>Stop Mining</button> -->
+        {% set blk = block_chain[blockHash] %}
+        Block Hash : {{blk.block_hash}}<br>
+        Prev Block Hash :{{blk.prev_hash}}<br>
+        Difficulty : {{blk.difficulty}}<br>
+        Miner : {{blk.miner}}<br>
+        Nonce : {{blk.nonce}}<br>
+        Block Reward :{{blk.block_reward}}<br>
+        Transactions : <br>
+        {% for tx in blk.transactions: %}
+        >> Transaction Hash : {{tx.tx_hash}}
+            <br>Inputs : <br>
+            {% for ip in tx.inputs: %}
+            > Sender : {{ip.sender_addr}}
+              Amount : {{ip.val}}
+            {% endfor %}
+            <br>Outputs : <br>
+            {% for op in tx.outputs: %}
+            > Receiver : {{op.receiver_addr}}
+              Amount : {{op.val}}<br>
+            {% endfor %}
+            <br>
+        {% endfor %}
+    </body>
+</html>
+

@@ -1,9 +1,10 @@
 from flask import Flask,render_template,request
-from services import movie_recommender_completed as mr
-import os
-import datetime
+from livereload import Server
+from services import blockchain as bc
 app = Flask(__name__)
-
+# app = create_app()
+app.debug = True
+server = Server(app.wsgi_app)
 """
 #When two same app.route("/") first one counts  
 @app.route("/")
@@ -13,63 +14,73 @@ def hello1():
 """
 @app.route("/")
 def hello():
-   return render_template('index.html')
+   return render_template('index.html',msg="Hello User")
 
-
+@app.route("/InitChain")
+def initChain():
+   bc.UTXO_DB={}
+   bc.mempool=[]
+   bc.last_block_hash=""
+   bc.difficulty=1
+   bc.block_chain={}
+   bc.total_blocks=0
+   bc.accepted_block_reward=50
+   bc.block_no=0
+   bc.mining=False
+   bc.users_list=bc.create_userslist()
+   return render_template('index.html',msg="Chain initialised",cred=bc.users_list["6"])
 
 
 # @app.route("/movieIn",methods=['POST'])
 # def movieIn():
 #    #print("here")
-#    #name property in html used to extract data from the html form
-#    mname = request.form['moviename']
-#    sim_mov,img_list=mr.get_similar_movies(mname)     
-   
-
-   
-#    if(os.path.realpath(__file__)[:-8]!=os.getcwd()):
-#       os.chdir(os.path.realpath(__file__)[:-8])
-   
-
-#    if(sim_mov==-1):
-#        return render_template('error.html')
-
-#    else:
-
-#       link = []
-#       temp = []
-#       releaseDate = []
-#       overview = []
-#       voteAverage = []
-#       genres = []
-#       runTime = []
-      
-#       for i in range(5):
-#          temp = str(sim_mov[i]).replace(":","")
-#          temp = temp.replace("& ","")
-#          temp = temp.replace(" ","+")
-#          link.append("http://www.google.com/search?q="+temp)      
-#          relDate,overView,voteAvg,genre,rT=mr.get_movie_details(sim_mov[i])
-#          releaseDate.append(relDate[0:4])
-#          overview.append(overView[0:600]) 
-#          voteAverage.append(voteAvg) 
-#          genres.append(genre) 
-#          conversion = datetime.timedelta(seconds=rT*60)
-#          converted_time = str(conversion)
-#          converted_time = converted_time[:-3]
-#          converted_time = converted_time.replace(":","h ")
-
-#          runTime.append(converted_time)
-
 #       return render_template('movies.html',sim_mov=sim_mov,img_list=img_list,link=link,releaseDate=releaseDate,overview=overview,voteAverage=voteAverage,genres=genres,runTime=runTime)
     
-# @app.route("/aboutus")
-# def about():
-#    return render_template('aboutus.html')
+@app.route("/ViewChain")
+def viewChain():
+   return render_template('index.html',msg="Viewing Chain",chain=bc.block_chain)
 
-# @app.route("/contactus")
-# def contact():
-#    return render_template('contactus.html')
+@app.route("/ViewMempool")
+def viewMempool():
+   #print("Len mempool :",len(bc.mempool))
+   return render_template('index.html',msg="Viewing Mempool",mempool=bc.mempool)
+
+@app.route("/ViewUTXO")
+def viewUTXO():
+   return render_template('index.html',msg="Viewing UTXO DB",utxodb=bc.UTXO_DB)
+
+
+@app.route("/ViewCred")
+def genCred():
+   return render_template('index.html',msg="Viewing Credentials",cred=bc.users_list["6"])
+
+@app.route("/Transact")
+def transact():
+   return render_template('index.html',msg="Perform Transaction")
+
+@app.route("/TransactionCreated")
+def transactionCreated():
+   receiver=request.args['receiver']
+   val=request.args['amount']
+   bc.gen_transaction(bc.users_list["6"],receiver,int(val))
+   return render_template('index.html',msg="Transaction added to mempool")
+
+@app.route("/Mine")
+def mine():
+   bc.mining=True
+   msg=bc.mine_script()
+   return render_template('index.html',msg=msg)
+
+@app.route("/ViewBlock")
+def viewBlock():
+   blockHash=request.args['blockHash']
+   return render_template('blockviewer.html',block_chain=bc.block_chain,blockHash=blockHash)
+
+# @app.route("/StopMining")
+# def stopMining():
+#    bc.mining=False
+#    return render_template('miner.html',msg="Mining Stopped")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+   #  app.run(debug=True)
+   server.serve(debug=True)

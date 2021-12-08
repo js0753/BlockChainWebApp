@@ -13,6 +13,8 @@ block_chain={}
 total_blocks=0
 accepted_block_reward=50
 block_no=0
+mining=False
+users_list={}
 
 class user:
     def __init__(self):
@@ -21,6 +23,8 @@ class user:
         self.pub_k=self.priv_k.get_verifying_key()
         m=hashlib.sha256(bytes(self.pub_k.to_string())) # Hashing the generated public key with SHA256
         self.pub_key_hash = m.hexdigest() # Storing the hashed public key
+        self.priv_k_string=self.priv_k.to_string()
+        self.pub_k_string=self.pub_k.to_string()
         # sig = sk.sign(b"message")
         # vk.verify(sig, b"message") # True
 
@@ -88,13 +92,13 @@ class valid_transaction:
 
 
 
-class block:
-    def __init__(self,tx_list,miner_pub,nonce,block_hash,timestamp):
-        self.tx_list=tx_list
-        self.miner=miner_pub
-        self.block_hash=block_hash
-        self.nonce=nonce
-        self.timestamp=timestamp
+# class block:
+#     def __init__(self,tx_list,miner_pub,nonce,block_hash,timestamp):
+#         self.tx_list=tx_list
+#         self.miner=miner_pub
+#         self.block_hash=block_hash
+#         self.nonce=nonce
+#         self.timestamp=timestamp
 
     
 class scriptPubKey:
@@ -219,18 +223,20 @@ class block:
             tx.display()
 
 def create_userslist():
+    print("Executing")
     users_list={
         "1": user(),
         "2":user(),
         "3":user(),
         "4":user(),
-        "5":user()
+        "5":user(),
+        "6":user()
     }
     for usr in users_list:
         val=coinbase_transaction(users_list[usr].pub_key_hash)
     return users_list
 
-def gen_transaction(users_list):
+def random_transactions(users_list):
     sender=users_list[str(randint(1,5))]
     receiver=users_list[str(randint(1,5))]
     #print("Sender : ",sender.pub_k,"\nReceiver :",receiver.pub_key_hash)
@@ -248,15 +254,31 @@ def gen_transaction(users_list):
         print("Generated Valid Transaction : \n")
         mempool[-1].display()
 
-def mine(miner):
-    global last_block_hash
+def gen_transaction(sender,receiver_pkh,amt):
+    data=bytes(sender.pub_key_hash+receiver_pkh+str(amt),encoding="utf-8")
+    signed_hash=sender.priv_k.sign(data,hashfunc=hashlib.sha256) #Signed hash
+    s_sigScript=scriptSig(sender.pub_k,signed_hash)
+    r_pks=scriptPubKey(receiver_pkh)
+    unc_tx=unconfirmed_tx(sender.pub_key_hash,receiver_pkh,amt,r_pks,s_sigScript)
+    res=tx_validation(unc_tx)
+    if res==False:
+        print("invalid transaction")
+        unc_tx.display()
+    else:
+        print("Generated Valid Transaction : \n")
+        mempool[-1].display()
+
+def mine():
+    global last_block_hash, users_list
     print("Mining")
-    # miner=users_list[str(randint(1,5))]
+    miner=users_list[str(randint(1,5))]
     tx_list=[coinbase_transaction(miner.pub_key_hash)]
     mempool.remove(tx_list[0])
     no_tx= randint(0,len(mempool)//2+1) #no of transactions the block will have
+    if len(mempool)==0:
+        return "No Transactions in Mempool"
     for i in range(no_tx):
-        tx = mempool[randint(0,len(mempool)-1)]
+        tx = mempool[0]
         tx_list.append(tx)
         mempool.remove(tx)
     finding=True
@@ -281,42 +303,53 @@ def mine(miner):
     last_block_hash=gb.block_hash
     print("[SUCCESS] Block Placed Successfully")
 
+def mine_script():
+    while len(mempool)>0:
+        mine()
+    return "Mining Ended"
+
+def gen_cred():
+    return users_list["6"]
+
+def view_blockchain():
+    for blk_hash in block_chain:
+        block_chain[blk_hash].display()
+
+def view_utxo():
+    print("UTXO DB")
+    for addr in UTXO_DB:
+        print("\n------------------\n")
+        print("UTXO's for ",addr,":")
+        for utxo in UTXO_DB[addr]:
+            utxo.display()
+
+def view_mempool():
+    print("\n-------------------Mempool---------------------\n")
+    for tx in mempool:
+        print("-----------------------------")
+        tx.display()
+        print("\n")
+
 if __name__=="__main__":
     users_list=create_userslist()
     while True : 
         c=input("1. Generate Transactions\n2. View Mempool\n3. View UTXO DB\n4. Mine\n5.View Blockchain\n")
         if c=='1':
-            gen_transaction(users_list)
+            #gen_transaction(users_list)
+            random_transactions()
             # tIn=txIn(sender.pub_key_hash,"Output",in_amt,)
             # tx=transaction(sender.pub_k,reciever.pub_k,in_amt,sign_in,out_amt,sign_op)
             
         elif c=='2':
-            print("\n-------------------Mempool---------------------\n")
-            for tx in mempool:
-                print("-----------------------------")
-                tx.display()
-                # print("Hash:",tx.tx_hash)
-                # print("Inputs:",tx.inputs)
-                # #print("Input:",tx.in_amt)
-                # print("Outputs:",tx.outputs)
-                # #print("Output:",tx.op_amt)
-                # #print("Transaction fee:",tx.in_amt-tx.op_amt)
-                print("\n")
+            view_mempool()
 
         elif c=='3':
-            print("UTXO DB")
-            for addr in UTXO_DB:
-                print("\n------------------\n")
-                print("UTXO's for ",addr,":")
-                for utxo in UTXO_DB[addr]:
-                    utxo.display()
+            view_utxo()
         elif c=='4':
-            miner=input
-            mine(miner)
+            mine()
 
         elif c=='5':
-            for blk_hash in block_chain:
-                block_chain[blk_hash].display()
+            view_blockchain()
         else:
             break
 

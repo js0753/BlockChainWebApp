@@ -5,6 +5,70 @@
         </title>
     </head>
     <body>
+        {{msg}}<br>
+        <form>
+        <button type="button" onclick="location.href='InitChain'" >Initialise Block Chain</button>
+        <button type="button" onclick="location.href='/ViewMempool'">View Mempool</button>
+        <button type="button" onclick="location.href='/ViewUTXO'">View UTXO DB</button>
         
+        <button type="button" onclick="location.href='/ViewChain'">View BlockChain</button>
+        <button type="button" onclick="location.href='/ViewCred'">View Credentials</button>
+        <button type="button" onclick="location.href='/Transact'">Do a transaction</button>
+        <button type="button" onclick="location.href='/Mine'">Start Mining</button><br>
+        </form>
+        {% if msg == "Chain initialised" or msg=="Viewing Credentials" %}
+            Your Keys: <br>
+            Private Key : {{cred.priv_k_string}}<br>
+            Public Key : {{cred.pub_k_string}}<br>
+            Public Key Hash : {{cred.pub_key_hash}}<br>
+        {% elif msg == "Viewing Chain" %}
+        <div class="chain-viewer">
+            {% for blk_hash in chain: %}
+                {% set blockUrl="/ViewBlock?blockHash="+blk_hash %}
+                <a href={{blockUrl}}>{{chain[blk_hash].block_no}} ) {{blk_hash}}</a><br>
+            {% endfor %}
+        </div>
+        {% elif msg == "Viewing Mempool" %}
+        <div class="mempool-viewer">
+            Total Unconfirmed Transactions : {{mempool|length}}
+            <br>
+            {% for tx in mempool: %}
+            <br>
+                >>Transaction Hash : {{tx.tx_hash}}<br>
+                  Inputs : <br>
+                  {% for ip in tx.inputs: %}
+                    > Sender : {{ip.sender_addr}}<br>
+                      Amount : {{ip.val}}
+                  {% endfor %}
+                  <br> Outputs : <br>
+                  {% for op in tx.outputs: %}
+                  > Receiver : {{op.receiver_addr}}<br>
+                    Amount : {{op.val}}<br>
+                  {% endfor %}
+            {% endfor %}
+        </div>
+        {% elif msg == "Viewing UTXO DB" %}
+        <div class="utxo-viewer">
+            Total UTXOS : {{utxodb|length}}<br>
+            {% for addr in utxodb: %}
+                UTXOs for address : {{addr}}<br>
+                {% for utxo in utxodb[addr]: %}
+                    > Amount : {{utxo.val}} <br>
+                {% endfor %}
+            {% endfor %}
+            {% elif msg == "Perform Transaction" %}
+            <div class="transaction-form">
+                <form action="/TransactionCreated">
+                    <label for="receiver">Receiver Address:</label>
+                    <input type="text" id="receiver" name="receiver"><br>
+                    <label for="amount">Amount:</label>
+                    <input type="text" id="amount" name="amount"><br>
+                    <button type="submit">Send</button>
+                </form>
+            </div>
+        {% endif %}
+        </div>
     </body>
-</html>
+</html>     
+
+
